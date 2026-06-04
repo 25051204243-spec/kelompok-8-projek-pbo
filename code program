@@ -1,0 +1,653 @@
+import pygame
+import sys
+import random
+import math
+from abc import ABC, abstractmethod  # PENTING: Untuk Abstraksi & Polimorfisme
+
+# buat pygame dan audio
+pygame.init()
+pygame.font.init()
+pygame.mixer.init()
+
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 500
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Supermarket Cashier Simulator - Kelompok PBO")
+
+# Warna Premium
+BG_COLOR = (240, 244, 248)
+NAVY = (26, 36, 43)
+WHITE = (255, 255, 255)
+DARK_GRAY = (50, 55, 65)
+GRAY = (170, 175, 185)
+WOOD = (139, 69, 19)
+WOOD_LIGHT = (180, 100, 40)
+GREEN_NEON = (57, 255, 20)
+RED_NEON = (255, 7, 58)
+GOLD = (255, 215, 0)
+CYAN = (0, 245, 255)
+MONEY_GREEN = (34, 139, 34)
+MONEY_CHANGE_RED = (210, 75, 50)
+CARD_BLUE = (0, 102, 204)
+
+
+def muat_gambar(nama_file, ukuran=None):
+    try:
+        img = pygame.image.load(nama_file).convert_alpha()
+        if ukuran:
+            return pygame.transform.scale(img, ukuran)
+        return img
+    except pygame.error:
+        print(f"[SISTEM] Gambar '{nama_file}' tidak ditemukan. Menggunakan fallback surface.")
+        permukaan = pygame.Surface(ukuran if ukuran else (50, 50), pygame.SRCALPHA)
+        if "soda" in nama_file:
+            permukaan.fill((255, 0, 0, 150))
+        elif "roti" in nama_file:
+            permukaan.fill((200, 100, 0, 150))
+        elif "susu" in nama_file:
+            permukaan.fill((0, 0, 255, 150))
+        else:
+            permukaan.fill((200, 200, 200, 250))
+        return permukaan
+
+
+def muat_audio(nama_file):
+    try:
+        return pygame.mixer.Sound(nama_file)
+    except pygame.error:
+        print(f"[SISTEM] Audio '{nama_file}' tidak ditemukan. Suara dinonaktifkan.")
+        return None
+
+
+def putar_backsound(nama_file, volume=0.3):
+    try:
+        pygame.mixer.music.load(nama_file)
+        pygame.mixer.music.set_volume(volume)
+        pygame.mixer.music.play(-1)
+    except pygame.error:
+        print(f"[SISTEM] Backsound '{nama_file}' tidak ditemukan.")
+
+
+# Memuat Aset Gambar & Audio
+bg_img = muat_gambar("asett/Rak.jpeg", (800, 500))
+img_soda = muat_gambar("asett/soda.png", (25, 35))
+img_roti = muat_gambar("asett/roti.png", (35, 30))
+img_susu = muat_gambar("asett/susu.png", (25, 35))
+img_basket = muat_gambar("asett/basket.png", (80, 70))
+img_uang = muat_gambar("asett/uang.png", (90, 45))
+img_atm = muat_gambar("asett/kartu.png", (90, 45))
+
+img_pelanggan_raw1 = muat_gambar("asett/Pelanggan 1.png")
+img_pelanggan_raw2 = muat_gambar("asett/Pelanggan 2.png")
+img_pelanggan_1 = pygame.transform.smoothscale(img_pelanggan_raw1, (150, 150))
+img_pelanggan_2 = pygame.transform.smoothscale(img_pelanggan_raw2, (150, 150))
+
+snd_tombol = muat_audio("asett/input.mpeg")
+snd_sukses = muat_audio("asett/pembayaran.mpeg")
+
+putar_backsound("asett/backsound.mpeg", volume=0.25)
+
+FONT_SM = pygame.font.SysFont("Comic Sans MS", 12, bold=True)
+FONT_MD = pygame.font.SysFont("Ubuntu", 16, bold=True)
+FONT_LG = pygame.font.SysFont("Impact", 24)
+
+
+# abstraksi dan pholi
+class MetodePembayaran(ABC):
+    def __init__(self, nama):
+        self._nama = nama  # Protected Attribute
+
+    @abstractmethod
+    def hitung_transaksi(self, total_tagihan):
+        pass
+
+
+class BayarTunai(MetodePembayaran):
+    def __init__(self):
+        super().__init__("TUNAI")
+
+    def hitung_transaksi(self, total_tagihan):
+        uang_diterima = float(math.ceil(total_tagihan / 5.0) * 5.0)
+        if uang_diterima == 0: uang_diterima = 5.0
+        uang_kembalian = uang_diterima - total_tagihan
+        return uang_diterima, uang_kembalian
+
+
+class BayarNonTunai(MetodePembayaran):
+    def __init__(self):
+        super().__init__("NON-TUNAI")
+
+    def hitung_transaksi(self, total_tagihan):
+        return total_tagihan, 0.0
+
+
+# inhearitance
+class ObjekStatis:
+    def __init__(self, x, y, lebar, tinggi):
+        self.rect = pygame.Rect(x, y, lebar, tinggi)
+
+    def draw(self, surface):
+        pass
+
+
+class RakBarang(ObjekStatis):
+    def __init__(self, nama, harga, gambar, x, y):
+        super().__init__(x, y, 110, 180)
+        self.nama = nama
+        self.harga = harga
+        self.gambar = gambar
+
+
+# enkapsulasi
+class PelangganBerjalan:
+    def __init__(self, id_pelanggan, x, y, gambar_sprite):
+        self.id = id_pelanggan
+        self.x = x
+        self.y = y
+        self.radius = 20
+        self.speed = 5
+        self.gambar_sprite = gambar_sprite
+        self.__keranjang = []  # Private Attribute
+        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+
+    #getter
+    def get_keranjang(self):
+        return self.__keranjang
+
+    #setter
+    def set_keranjang(self, keranjang_baru):
+        if isinstance(keranjang_baru, list):
+            self.__keranjang = keranjang_baru
+        else:
+            print("[SISTEM ENKAPSULASI] Error: Format data keranjang harus berupa list/array!")
+
+    def tambah_barang(self, barang):
+        self.__keranjang.append(barang)
+
+    def handle_input(self, batas_kasir_x):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]: self.x -= self.speed
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.x += self.speed
+        if keys[pygame.K_UP] or keys[pygame.K_w]: self.y -= self.speed
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]: self.y += self.speed
+
+        if self.x < self.radius: self.x = self.radius
+        if self.x > SCREEN_WIDTH - self.radius: self.x = SCREEN_WIDTH - self.radius
+        if self.y < 140: self.y = 140
+        if self.y > SCREEN_HEIGHT - self.radius - 40: self.y = SCREEN_HEIGHT - self.radius - 40
+
+        if self.x > batas_kasir_x - self.radius and self.y > 220:
+            self.x = batas_kasir_x - self.radius
+
+        self.rect.x = self.x - self.radius
+        self.rect.y = self.y - self.radius
+
+    def draw(self, surface):
+        surface.blit(self.gambar_sprite, (self.x - 27, self.y - 27))
+        lbl = FONT_SM.render(f"Pembeli #{self.id}", True, NAVY)
+        surface.blit(lbl, (self.x - 30, self.y - 45))
+
+        if len(self.__keranjang) > 0:
+            barang_terakhir = self.__keranjang[-1]
+            img_mini = pygame.transform.scale(barang_terakhir["gambar"], (30, 36))
+            surface.blit(img_mini, (self.x + 50, self.y + 32))
+
+
+
+class MesinKasirMini:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.input_sekarang = ""
+        self.total_dihitung = 0.0
+        self.status_pembayaran = False
+        self.tombol = []
+
+        labels = [
+            ['7', '8', '9', '+'],
+            ['4', '5', '6', 'Clr'],
+            ['1', '2', '3', 'PAY'],
+            ['0', '.', 'Total', '']
+        ]
+
+        for r, baris in enumerate(labels):
+            for c, label in enumerate(baris):
+                if label == '': continue
+                bx = self.x + 15 + (c * 50)
+                by = self.y + 60 + (r * 38)
+                lebar, tinggi = 42, 32
+                if label == 'PAY': tinggi = 70
+                self.tombol.append({"rect": pygame.Rect(bx, by, lebar, tinggi), "label": label})
+
+    def handle_click(self, pos):
+        for t in self.tombol:
+            if t["rect"].collidepoint(pos):
+                label = t["label"]
+                if snd_tombol:
+                    snd_tombol.play()
+
+                if label in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.']:
+                    if len(self.input_sekarang) < 6: self.input_sekarang += label
+                elif label == 'Clr':
+                    self.input_sekarang = ""
+                elif label == '+':
+                    if self.input_sekarang:
+                        self.total_dihitung += float(self.input_sekarang)
+                        self.input_sekarang = ""
+                        return "+"
+                elif label == 'Total':
+                    if self.input_sekarang:
+                        self.total_dihitung += float(self.input_sekarang)
+                        self.input_sekarang = ""
+                elif label == 'PAY':
+                    self.status_pembayaran = True
+                return label
+        return None
+
+    def draw(self, surface):
+        pygame.draw.rect(surface, NAVY, (self.x, self.y, 230, 220), border_radius=12)
+        pygame.draw.rect(surface, (38, 50, 56), (self.x + 10, self.y + 10, 210, 40), border_radius=6)
+
+        txt_in = FONT_SM.render(f"IN: ${self.input_sekarang}", True, CYAN)
+        txt_tot = FONT_SM.render(f"TOT: ${self.total_dihitung:.2f}", True, GREEN_NEON)
+        surface.blit(txt_in, (self.x + 15, self.y + 20))
+        surface.blit(txt_tot, (self.x + 115, self.y + 20))
+
+        for t in self.tombol:
+            warna_tombol = WHITE
+            warna_teks = NAVY
+            if t["label"] in ['+', 'Total']:
+                warna_tombol = CYAN
+            elif t["label"] == 'PAY':
+                warna_tombol = GREEN_NEON
+            elif t["label"] == 'Clr':
+                warna_tombol = RED_NEON; warna_teks = WHITE
+
+            pygame.draw.rect(surface, warna_tombol, t["rect"], border_radius=5)
+            txt = FONT_SM.render(t["label"], True, warna_teks)
+            tx = t["rect"].x + (t["rect"].width - txt.get_width()) // 2
+            ty = t["rect"].y + (t["rect"].height - txt.get_height()) // 2
+            surface.blit(txt, (tx, ty))
+
+
+# PROGRAM UTAMA
+class GameSupermarket:
+    def __init__(self):
+        self.id_counter = 1
+        self.pelanggan_sukses = 0
+        self.pelanggan_kecewa = 0
+        self.__uang_toko = 300.00  # Private Attribute (Enkapsulasi Keuangan)
+
+        sprite_awal = random.choice([img_pelanggan_1, img_pelanggan_2])
+        self.player = PelangganBerjalan(self.id_counter, 80, 400, sprite_awal)
+
+        self.daftar_rak = [
+            RakBarang("SODA", 1.99, img_soda, 45, 230),
+            RakBarang("ROTI", 3.25, img_roti, 230, 230),
+            RakBarang("SUSU", 4.50, img_susu, 415, 230)
+        ]
+
+        self.batas_meja_x = 560
+        self.meja_kasir_rect = pygame.Rect(self.batas_meja_x, 260, 220, 180)
+        self.pemicu_bayar_rect = pygame.Rect(480, 280, 80, 100)
+        self.box_keranjang_kasir = pygame.Rect(self.batas_meja_x + 125, 340, 80, 70)
+        self.area_handover_fisik = pygame.Rect(self.batas_meja_x + 20, 340, 90, 45)
+        self.area_kembalian_fisik = pygame.Rect(self.batas_meja_x + 20, 290, 90, 45)
+        self.kembalian_diambil = False
+
+        self.kasir_kalkulator = MesinKasirMini(555, 70)
+        self.game_state = "SHOPPING"
+        self.metode_terpilih = None
+
+        self.uang_diterima = 0.0
+        self.uang_kembalian = 0.0
+        self.total_real = 0.0
+        self.waktu_maksimal = 60.0
+        self.waktu_tersisa = self.waktu_maksimal
+
+        self.barang_di_scanner = None
+        self.keranjang_checkout = []
+        self.barang_sudah_scan = []
+
+        self.pesan_bantuan = f"Bantu Pembeli #{self.id_counter} belanja! Ambil barang di rak menggunakan tombol 'E'."
+        self.flash_timer = 0
+
+    #(Untuk mengambil nilai kas toko saat ini)
+    def get_uang_toko(self):
+        return self.__uang_toko
+
+    # (Untuk memperbarui nilai kas toko dengan proteksi angka minus)
+    def set_uang_toko(self, nominal_baru):
+        if nominal_baru >= 0:
+            self.__uang_toko = nominal_baru
+        else:
+            print("[SISTEM ENKAPSULASI] Error: Saldo keuangan toko tidak boleh bernilai negatif!")
+
+    def update(self, dt):
+        self.flash_timer += 0.05
+
+        if self.game_state == "SHOPPING":
+            self.player.handle_input(self.batas_meja_x)
+            if self.player.rect.colliderect(self.pemicu_bayar_rect):
+                # Membaca isi keranjang via GETTER pembeli
+                if len(self.player.get_keranjang()) > 0:
+                    self.game_state = "CHECKOUT"
+                    self.waktu_tersisa = self.waktu_maksimal
+                    # Menyalin isi data menggunakan GETTER pembeli
+                    self.keranjang_checkout = list(self.player.get_keranjang())
+                    self.barang_sudah_scan = []
+                    self.barang_di_scanner = None
+                    self.pesan_bantuan = "Klik Basket di meja kasir untuk mengeluarkan barang."
+                else:
+                    self.pesan_bantuan = "Keranjang masih kosong! Ambil barang di rak terlebih dahulu."
+
+        elif self.game_state in ["CHECKOUT", "CHOOSE_METHOD", "CUSTOMER_HANDOVER", "RECEIPT_STAGE"]:
+            self.waktu_tersisa -= dt
+            if self.waktu_tersisa <= 0:
+                self.waktu_tersisa = 0
+                self.game_state = "TIMEOUT_STAGE"
+                self.pelanggan_kecewa += 1
+                self.pesan_bantuan = f"Waktu habis! Pembeli #{self.id_counter} MARAH & kabur!"
+
+        if self.game_state == "CHECKOUT":
+            if self.kasir_kalkulator.status_pembayaran:
+                if len(self.keranjang_checkout) == 0 and self.barang_di_scanner is None:
+                    self.game_state = "CHOOSE_METHOD"
+                    self.kasir_kalkulator.status_pembayaran = False
+                    self.total_real = sum(i["harga"] for i in self.barang_sudah_scan)
+                    self.metode_terpilih = None
+                else:
+                    self.kasir_kalkulator.status_pembayaran = False
+                    self.pesan_bantuan = "Scan SEMUA barang di keranjang sebelum menekan PAY!"
+
+    def next_customer_reset(self):
+        self.id_counter += 1
+        sprite_acak = random.choice([img_pelanggan_1, img_pelanggan_2])
+        self.player = PelangganBerjalan(self.id_counter, 80, 400, sprite_acak)
+        self.kasir_kalkulator.total_dihitung = 0.0
+        self.kasir_kalkulator.input_sekarang = ""
+        self.game_state = "SHOPPING"
+        self.pesan_bantuan = f"Pelanggan #{self.id_counter} datang! Tuntun dia untuk belanja."
+
+    def ambil_barang(self):
+        for rak in self.daftar_rak:
+            if self.player.rect.colliderect(rak.rect):
+                self.player.tambah_barang({"nama": rak.nama, "harga": rak.harga, "gambar": rak.gambar})
+                # Membaca isi keranjang via GETTER pembeli
+                self.pesan_bantuan = f"Mengambil {rak.nama} (${rak.harga}). Isi tas: {len(self.player.get_keranjang())} item."
+                return
+        self.pesan_bantuan = "Gagal! Berdirilah tepat di dekat rak barang."
+
+    def klik_ambil_dari_keranjang_kasir(self):
+        if self.barang_di_scanner is None:
+            if len(self.keranjang_checkout) > 0:
+                self.barang_di_scanner = self.keranjang_checkout.pop()
+                self.pesan_bantuan = f"Mengambil {self.barang_di_scanner['nama']}. Masukkan harga lalu tekan '+'!"
+            else:
+                self.pesan_bantuan = "Basket kosong! Semua barang telah dipindahkan ke scanner."
+        else:
+            self.pesan_bantuan = "Selesaikan scan barang yang ada di meja terlebih dahulu!"
+
+    def eksekusi_pembayaran(self, objek_metode):
+        self.metode_terpilih = objek_metode
+        self.uang_diterima, self.uang_kembalian = self.metode_terpilih.hitung_transaksi(self.total_real)
+        self.kembalian_diambil = False
+
+    def draw(self, surface):
+        surface.blit(bg_img, (0, 0))
+
+        pygame.draw.rect(surface, NAVY, (0, 0, SCREEN_WIDTH, 60))
+        # Membaca data kas toko via GETTER murni
+        txt_uang = FONT_LG.render(f"KAS TOKO: ${self.get_uang_toko():.2f}", True, GREEN_NEON)
+        txt_skor = FONT_MD.render(f"Puas: {self.pelanggan_sukses} | Kecewa: {self.pelanggan_kecewa}", True, WHITE)
+        surface.blit(txt_uang, (20, 15))
+        surface.blit(txt_skor, (520, 20))
+
+        if self.game_state in ["CHECKOUT", "CHOOSE_METHOD", "CUSTOMER_HANDOVER", "RECEIPT_STAGE"]:
+            lebar_bar = int((self.waktu_tersisa / self.waktu_maksimal) * 160)
+            warna_bar = GREEN_NEON if self.waktu_tersisa > 25 else RED_NEON
+            pygame.draw.rect(surface, DARK_GRAY, (320, 20, 160, 20), border_radius=4)
+            pygame.draw.rect(surface, warna_bar, (320, 20, lebar_bar, 20), border_radius=4)
+            txt_timer = FONT_SM.render(f"Waktu: {int(self.waktu_tersisa)}s", True, WHITE)
+            surface.blit(txt_timer, (355, 20))
+
+        pygame.draw.rect(surface, WOOD_LIGHT, self.meja_kasir_rect, border_radius=8)
+        pygame.draw.rect(surface, WOOD, self.meja_kasir_rect, 4, border_radius=8)
+        pygame.draw.rect(surface, RED_NEON, (self.meja_kasir_rect.x + 105, self.meja_kasir_rect.y + 80, 15, 4))
+        surface.blit(img_basket, (self.box_keranjang_kasir.x, self.box_keranjang_kasir.y))
+
+        if self.game_state == "CHECKOUT":
+            for idx in range(len(self.keranjang_checkout)):
+                item_mini = pygame.transform.scale(self.keranjang_checkout[idx]["gambar"], (14, 20))
+                kolom = idx % 4
+                baris = idx // 4
+                pos_x = self.box_keranjang_kasir.x + 12 + (kolom * 15)
+                pos_y = self.box_keranjang_kasir.y + 10 + (baris * 12)
+                surface.blit(item_mini, (pos_x, pos_y))
+
+        if self.game_state == "CHECKOUT" and self.barang_di_scanner is not None:
+            surface.blit(self.barang_di_scanner["gambar"], (self.meja_kasir_rect.x + 45, self.meja_kasir_rect.y + 50))
+            surface.blit(FONT_SM.render(self.barang_di_scanner["nama"], True, NAVY),
+                         (self.meja_kasir_rect.x + 40, self.meja_kasir_rect.y + 90))
+
+        if self.game_state == "CUSTOMER_HANDOVER":
+            if self.metode_terpilih._nama == "TUNAI":
+                surface.blit(img_uang, (self.area_handover_fisik.x, self.area_handover_fisik.y))
+                surface.blit(FONT_SM.render(f"${self.uang_diterima:.0f} CASH", True, MONEY_GREEN),
+                             (self.area_handover_fisik.x + 10, self.area_handover_fisik.y - 15))
+            elif self.metode_terpilih._nama == "NON-TUNAI":
+                surface.blit(img_atm, (self.area_handover_fisik.x, self.area_handover_fisik.y))
+                surface.blit(FONT_SM.render("TAP CARD", True, CARD_BLUE),
+                             (self.area_handover_fisik.x + 12, self.area_handover_fisik.y - 15))
+
+        if self.game_state == "RECEIPT_STAGE" and self.uang_kembalian > 0 and not self.kembalian_diambil:
+            surface.blit(img_uang, (self.area_kembalian_fisik.x, self.area_kembalian_fisik.y))
+            surface.blit(FONT_SM.render("REFUND", True, MONEY_CHANGE_RED),
+                         (self.area_kembalian_fisik.x + 20, self.area_kembalian_fisik.y - 15))
+
+        # Menggunakan GETTER pembeli untuk mendeteksi isi tas belanja
+        if len(self.player.get_keranjang()) > 0 and self.game_state == "SHOPPING":
+            if int(self.flash_timer) % 2 == 0:
+                surface.blit(FONT_SM.render("ANTRI DI SINI!", True, RED_NEON),
+                             (self.meja_kasir_rect.x - 10, self.meja_kasir_rect.y - 25))
+
+        self.kasir_kalkulator.draw(surface)
+        self.player.draw(surface)
+
+        if self.game_state == "CHECKOUT":
+            pygame.draw.rect(surface, WHITE, (160, 100, 250, 240), border_radius=8)
+            pygame.draw.rect(surface, NAVY, (160, 100, 250, 240), 2, border_radius=8)
+            surface.blit(FONT_MD.render(f"SCANNER MONITOR #{self.player.id}:", True, NAVY), (175, 115))
+
+            if self.barang_di_scanner is not None:
+                surface.blit(FONT_MD.render(f"Produk: {self.barang_di_scanner['nama']}", True, DARK_GRAY), (180, 160))
+                surface.blit(FONT_MD.render(f"Harga : ${self.barang_di_scanner['harga']}", True, RED_NEON), (180, 190))
+                surface.blit(FONT_SM.render("[Input harga lalu ketuk tombol +]", True, NAVY), (180, 230))
+            else:
+                if len(self.keranjang_checkout) > 0:
+                    if int(self.flash_timer) % 2 == 0:
+                        surface.blit(FONT_MD.render("KLIK KERANJANG BASKET", True, RED_NEON), (170, 170))
+                        surface.blit(FONT_MD.render("UNTUK SCAN BARANG!", True, RED_NEON), (180, 195))
+                else:
+                    surface.blit(FONT_MD.render("Semua sukses di-scan!", True, GREEN_NEON), (180, 170))
+                    surface.blit(FONT_SM.render("Sekarang, klik tombol 'PAY' di kasir.", True, DARK_GRAY), (175, 200))
+
+            surface.blit(FONT_SM.render(f"Scanned: {len(self.barang_sudah_scan)} item", True, DARK_GRAY), (180, 300))
+
+        if self.game_state == "CHOOSE_METHOD":
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))
+            surface.blit(overlay, (0, 0))
+
+            pygame.draw.rect(surface, WHITE, (180, 120, 440, 250), border_radius=15)
+            pygame.draw.rect(surface, NAVY, (180, 120, 440, 250), 4, border_radius=15)
+
+            surface.blit(FONT_MD.render("PILIH METODE PEMBAYARAN KASIR", True, NAVY), (260, 140))
+            surface.blit(FONT_MD.render(f"Total Tagihan : ${self.total_real:.2f}", True, DARK_GRAY), (220, 190))
+
+            warna_t = GOLD if (self.metode_terpilih and self.metode_terpilih._nama == "TUNAI") else GRAY
+            warna_nt = CYAN if (self.metode_terpilih and self.metode_terpilih._nama == "NON-TUNAI") else GRAY
+
+            self.btn_tunai = pygame.draw.rect(surface, warna_t, (220, 230, 160, 40), border_radius=8)
+            surface.blit(FONT_MD.render("1. TUNAI (CASH)", True, NAVY), (240, 240))
+
+            self.btn_nontunai = pygame.draw.rect(surface, warna_nt, (400, 230, 160, 40), border_radius=8)
+            surface.blit(FONT_MD.render("2. NON-TUNAI", True, NAVY), (430, 240))
+
+            if self.metode_terpilih is not None:
+                self.btn_bayar_proses = pygame.draw.rect(surface, GREEN_NEON, (220, 300, 340, 45), border_radius=10)
+                pygame.draw.rect(surface, NAVY, self.btn_bayar_proses, 2, border_radius=10)
+                surface.blit(FONT_MD.render("MINTA UANG / KARTU KE PEMBELI", True, NAVY), (265, 312))
+
+        if self.game_state == "RECEIPT_STAGE":
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 130))
+            surface.blit(overlay, (0, 0))
+
+            box_struk = pygame.Rect(260, 40, 280, 410)
+            pygame.draw.rect(surface, WHITE, box_struk, border_radius=4)
+            pygame.draw.rect(surface, DARK_GRAY, box_struk, 2, border_radius=4)
+
+            surface.blit(FONT_MD.render("=== TOKO SUPERMARKET ===", True, NAVY), (295, 55))
+            surface.blit(FONT_SM.render(f"No. Nota: #REG-{self.player.id}2026", True, DARK_GRAY), (280, 80))
+            surface.blit(FONT_SM.render(f"Metode  : {self.metode_terpilih._nama}", True, DARK_GRAY), (280, 100))
+            pygame.draw.line(surface, DARK_GRAY, (275, 125), (525, 125), 1)
+
+            y_offset = 135
+            for item in self.barang_sudah_scan:
+                surface.blit(FONT_SM.render(f"{item['nama']}", True, DARK_GRAY), (280, y_offset))
+                txt_price = FONT_SM.render(f"${item['harga']:.2f}", True, DARK_GRAY)
+                surface.blit(txt_price, (480, y_offset))
+                y_offset += 22
+
+            pygame.draw.line(surface, DARK_GRAY, (275, y_offset + 5), (525, y_offset + 5), 1)
+
+            surface.blit(FONT_MD.render("TOTAL", True, NAVY), (280, y_offset + 15))
+            surface.blit(FONT_MD.render(f"${self.total_real:.2f}", True, NAVY), (465, y_offset + 15))
+
+            surface.blit(FONT_SM.render("BAYAR", True, DARK_GRAY), (280, y_offset + 40))
+            surface.blit(FONT_SM.render(f"${self.uang_diterima:.2f}", True, DARK_GRAY), (480, y_offset + 40))
+
+            surface.blit(FONT_MD.render("KEMBALIAN", True, RED_NEON if self.uang_kembalian > 0 else DARK_GRAY),
+                         (280, y_offset + 60))
+            txt_kembali = FONT_MD.render(f"${self.uang_kembalian:.2f}", True,
+                                         GREEN_NEON if self.uang_kembalian > 0 else DARK_GRAY)
+            surface.blit(txt_kembali, (465, y_offset + 60))
+
+            surface.blit(FONT_SM.render("--- Terima Kasih ---", True, DARK_GRAY), (340, y_offset + 95))
+
+            self.btn_next_queue = pygame.Rect(280, 395, 240, 40)
+
+            if self.uang_kembalian > 0 and not self.kembalian_diambil:
+                pygame.draw.rect(surface, GRAY, self.btn_next_queue, border_radius=8)
+                pygame.draw.rect(surface, NAVY, self.btn_next_queue, 2, border_radius=8)
+                surface.blit(FONT_SM.render("KEMBALIKAN UANG (KLIK DI MEJA)", True, RED_NEON), (285, 405))
+            else:
+                pygame.draw.rect(surface, GOLD, self.btn_next_queue, border_radius=8)
+                pygame.draw.rect(surface, NAVY, self.btn_next_queue, 2, border_radius=8)
+                surface.blit(FONT_SM.render("LEPAS STRUK & NEXT CUSTOMER", True, NAVY), (295, 405))
+
+        if self.game_state == "TIMEOUT_STAGE":
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            surface.blit(overlay, (0, 0))
+
+            pygame.draw.rect(surface, WHITE, (200, 150, 400, 200), border_radius=12)
+            pygame.draw.rect(surface, RED_NEON, (200, 150, 400, 200), 4, border_radius=12)
+
+            surface.blit(FONT_LG.render("PELANGGAN MARAH & KABUR!", True, RED_NEON), (245, 180))
+            surface.blit(FONT_MD.render("Waktu pelayanan kasir melebihi 1 menit.", True, DARK_GRAY), (240, 220))
+
+            self.btn_timeout_next = pygame.Rect(280, 280, 240, 42)
+            pygame.draw.rect(surface, DARK_GRAY, self.btn_timeout_next, border_radius=8)
+            surface.blit(FONT_SM.render("LEPAS & PANGGIL ANTRIAN BARU", True, WHITE), (300, 292))
+
+        pygame.draw.rect(surface, DARK_GRAY, (0, SCREEN_HEIGHT - 35, SCREEN_WIDTH, 35))
+        txt_bantu = FONT_SM.render(self.pesan_bantuan, True, WHITE)
+        surface.blit(txt_bantu, (15, SCREEN_HEIGHT - 25))
+
+
+# main/fungsi pemanggil
+def main():
+    clock = pygame.time.Clock()
+    game = GameSupermarket()
+
+    while True:
+        dt = clock.tick(40) / 1000.0
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_e and game.game_state == "SHOPPING":
+                    game.ambil_barang()
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                pos_mouse = pygame.mouse.get_pos()
+
+                if game.game_state == "CHECKOUT":
+                    if game.box_keranjang_kasir.collidepoint(pos_mouse):
+                        game.klik_ambil_dari_keranjang_kasir()
+
+                    aksi = game.kasir_kalkulator.handle_click(pos_mouse)
+                    if aksi == '+':
+                        if game.barang_di_scanner is not None:
+                            game.barang_sudah_scan.append(game.barang_di_scanner)
+                            game.barang_di_scanner = None
+                            game.pesan_bantuan = "Barang sukses discan! Ambil lagi barang berikutnya di basket."
+                        else:
+                            game.pesan_bantuan = "Tidak ada barang di atas meja scanner! Ambil dulu dari basket."
+
+                elif game.game_state == "CHOOSE_METHOD":
+                    if game.btn_tunai.collidepoint(pos_mouse):
+                        game.eksekusi_pembayaran(BayarTunai())
+                    elif game.btn_nontunai.collidepoint(pos_mouse):
+                        game.eksekusi_pembayaran(BayarNonTunai())
+                    elif game.metode_terpilih is not None and game.btn_bayar_proses.collidepoint(pos_mouse):
+                        game.game_state = "CUSTOMER_HANDOVER"
+                        if game.metode_terpilih._nama == "TUNAI":
+                            game.pesan_bantuan = "Pelanggan menaruh UANG di meja! KLIK GAMBAR UANG di meja kasir."
+                        else:
+                            game.pesan_bantuan = "Pelanggan mengeluarkan KARTU! KLIK KARTU di meja kasir."
+
+                elif game.game_state == "CUSTOMER_HANDOVER":
+                    if game.area_handover_fisik.collidepoint(pos_mouse):
+                        game.game_state = "RECEIPT_STAGE"
+                        if snd_sukses:
+                            snd_sukses.play()
+
+                        if game.uang_kembalian > 0:
+                            game.pesan_bantuan = "Klik GAMBAR UANG KEMBALIAN di meja untuk menyerahkan refund uang."
+                        else:
+                            game.pesan_bantuan = "Pembayaran pas! Klik tombol emas di nota untuk menyelesaikannya."
+
+                elif game.game_state == "RECEIPT_STAGE":
+                    if game.uang_kembalian > 0 and not game.kembalian_diambil:
+                        if game.area_kembalian_fisik.collidepoint(pos_mouse):
+                            game.kembalian_diambil = True
+                            game.pesan_bantuan = "Uang kembalian diambil! Sekarang klik tombol emas di bawah nota."
+
+                    elif game.btn_next_queue.collidepoint(pos_mouse):
+                        # Memperbarui data via murni GETTER & SETTER enkapsulasi uang toko
+                        saldo_lama = game.get_uang_toko()
+                        game.set_uang_toko(saldo_lama + game.total_real)
+
+                        # Mengosongkan tas belanja pembeli via SETTER murni pembeli
+                        game.player.set_keranjang([])
+
+                        game.pelanggan_sukses += 1
+                        game.next_customer_reset()
+
+                elif game.game_state == "TIMEOUT_STAGE":
+                    if game.btn_timeout_next.collidepoint(pos_mouse):
+                        game.next_customer_reset()
+
+        game.update(dt)
+        game.draw(screen)
+        pygame.display.flip()
+
+
+if __name__ == "__main__":
+    main()
