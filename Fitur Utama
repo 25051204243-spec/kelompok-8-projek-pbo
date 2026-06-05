@@ -1,12 +1,72 @@
-Pastikan Python 3 sudah terinstal pada komputer.
-Install library Pygame melalui Command Prompt atau Terminal dengan perintah: pip install pygame
-Siapkan seluruh file aset gambar yang digunakan (Rak.jpeg, soda.png, roti.png, susu.png, basket.png, uang.png, kartu.png, Pelanggan 1.png, dan Pelanggan 2.png) di dalam folder asett.
-Simpan file source code Python pada folder project yang sama dengan folder asett.
-Buka Command Prompt atau Terminal, lalu masuk ke direktori project.
-Jalankan program dengan perintah: python nama_file.py
-Setelah game terbuka: 
--Gunakan tombol W, A, S, D atau tombol panah untuk menggerakkan pelanggan.
--Tekan tombol E untuk mengambil barang dari rak.
--Bawa pelanggan ke area kasir untuk memulai proses checkout.
--Scan barang, hitung total belanja, pilih metode pembayaran, dan selesaikan transaksi.
-Permainan akan terus berjalan dengan pelanggan baru yang datang setelah transaksi selesai.
+Pergerakan karakter pelanggan
+- Menggunakan tombol WASD atau tombol panah.
+- Karakter dapat bergerak di area supermarket.
+Pengambilan barang dari rak
+- Pemain dapat mengambil barang menggunakan tombol E.
+- Tersedia 3 jenis barang:
+a. Soda
+b. Roti
+c. Susu
+Sistem keranjang belanja
+- Barang yang diambil otomatis masuk ke keranjang pelanggan.
+- Jumlah barang dalam keranjang dapat bertambah.
+Sistem checkout
+- Pelanggan menuju area kasir untuk melakukan pembayaran.
+- Barang dari keranjang dipindahkan ke area scanner.
+Scanner barang
+- Barang harus di scan satu per satu sebelum pembayaran.
+- Sistem memverifikasi semua barang sudah discan.
+Kalkulator kasir (POS Mini)
+- Input angka harga barang.
+- Tombol tambah (+).
+- Tombol Total.
+- Tombol Clear.
+- Tombol PAY.
+Perhitungan total belanja
+- Menghitung total harga seluruh barang yang dibeli pelanggan.
+Pilihan metode pembayaran
+- Pembayaran Tunai (Cash).
+- Pembayaran Non-Tunai (Kartu).
+Sistem uang kembalian
+- Menghitung jumlah uang yang diterima.
+- Menghitung uang kembalian secara otomatis.
+Sistem pembayaran kartu
+- Simulasi pembayaran menggunakan kartu ATM/debit.
+Cetak struk transaksi
+- Menampilkan:
+a. Nomor nota9
+b. Daftar barang
+c. Total pembayaran
+d. Uang diterima
+e. Kembalian
+f. Metode pembayaran
+Time Attack
+- Setiap pelanggan memiliki batas waktu 60 detik.
+- Jika waktu habis pelanggan akan marah dan pergi.
+Sistem skor pelanggan
+- Menghitung jumlah pelanggan puas.
+- Menghitung jumlah pelanggan kecewa.
+Sistem pendapatan toko
+- Kas toko bertambah setelah transaksi berhasil.
+- Total uang toko ditampilkan pada layar.
+Pergantian pelanggan otomatis
+- Setelah transaksi selesai pelanggan berikutnya akan muncul.
+Sistem pesan bantuan (tutorial)
+- Memberikan petunjuk langkah demi langkah kepada pemain.
+Visual dan antarmuka game
+- Background supermarket.
+- Rak barang.
+- Keranjang belanja.
+- Mesin kasir.
+- Uang dan kartu pembayaran.
+- Progress bar waktu.
+Fitur OOP yang Diimplementasikan
+- Enkapsulasi → __keranjang, __uang_toko
+- Abstraksi → MetodePembayaran
+- Inheritance → BayarTunai, BayarNonTunai
+- Polimorfisme → hitung_transaksi()
+- Protected Attribute → _nama
+Fitur Suara (Audio)
+- Efek suara tombol kasir : Suara diputar saat pemain menekan tombol pada kalkulator kasir. 
+- Efek suara pembayaran berhasil : Suara diputar ketika transaksi pembayaran berhasil diproses.
+- Musik latar (Backsound) : Musik diputar secara terus-menerus selama permainan berlangsung untuk meningkatkan pengalaman bermain.
