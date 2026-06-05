@@ -1,3 +1,14 @@
+<img width="1199" height="807" alt="gambar 11" src="https://github.com/user-attachments/assets/bcc6e98c-8ac0-4fa5-8dcb-93525023254e" />
+<img width="1199" height="807" alt="gambar 10" src="https://github.com/user-attachments/assets/6d4c1bfc-f3e9-44b1-af13-fbb6ccbaf136" />
+<img width="1198" height="799" alt="gambar 9" src="https://github.com/user-attachments/assets/6be9d5bd-2376-4531-8e2d-914d3485fe72" />
+<img width="1196" height="794" alt="gambar 8" src="https://github.com/user-attachments/assets/133652ae-10c6-4583-a9ab-81dde1d08777" />
+<img width="1195" height="802" alt="gambar 7" src="https://github.com/user-attachments/assets/050a7e91-66ef-4b28-943b-4a002d0780f7" />
+<img width="1197" height="795" alt="gambar 6" src="https://github.com/user-attachments/assets/0c9bb6ef-364f-4117-9e60-e6603c9dc0a5" />
+<img width="1196" height="803" alt="gambar 5" src="https://github.com/user-attachments/assets/ce4ec7df-e33a-41b2-b176-9ea562227e35" />
+<img width="1195" height="801" alt="gambar 4" src="https://github.com/user-attachments/assets/1aacebc9-1409-4e12-91f1-73a710c8c098" />
+<img width="1202" height="798" alt="gambar 3" src="https://github.com/user-attachments/assets/06488980-fd16-4978-8813-202d87e1f23c" />
+<img width="1197" height="800" alt="gambar 2" src="https://github.com/user-attachments/assets/e58c56c3-001f-49b6-acd5-cd67d6abfb4f" />
+<img width="1200" height="797" alt="gambar 1" src="https://github.com/user-attachments/assets/70b701af-2d08-4bc7-ae48-769bb8186e28" />
 # Projek game Supermarket Cashier Simulator
 Pemain mengelola simulasi kasir dengan memandu pelanggan berbelanja, menuntaskan transaksi melalui kalkulator dan metode pembayaran yang bervariasi, serta menjaga efisiensi waktu agar saldo kas toko terus bertambah.
 # Anggota
