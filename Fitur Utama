@@ -1,0 +1,12 @@
+Pastikan Python 3 sudah terinstal pada komputer.
+Install library Pygame melalui Command Prompt atau Terminal dengan perintah: pip install pygame
+Siapkan seluruh file aset gambar yang digunakan (Rak.jpeg, soda.png, roti.png, susu.png, basket.png, uang.png, kartu.png, Pelanggan 1.png, dan Pelanggan 2.png) di dalam folder asett.
+Simpan file source code Python pada folder project yang sama dengan folder asett.
+Buka Command Prompt atau Terminal, lalu masuk ke direktori project.
+Jalankan program dengan perintah: python nama_file.py
+Setelah game terbuka: 
+-Gunakan tombol W, A, S, D atau tombol panah untuk menggerakkan pelanggan.
+-Tekan tombol E untuk mengambil barang dari rak.
+-Bawa pelanggan ke area kasir untuk memulai proses checkout.
+-Scan barang, hitung total belanja, pilih metode pembayaran, dan selesaikan transaksi.
+Permainan akan terus berjalan dengan pelanggan baru yang datang setelah transaksi selesai.
